@@ -9,6 +9,7 @@ node_modules/
 /playwright/.cache/
 /playwright/.auth/
 .auth/
+/test/.auth
 
 # Environment files
 .env
