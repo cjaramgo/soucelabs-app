@@ -58,7 +58,6 @@ export class InventoryPage extends BasePage {
    * Get all inventory items count
    */
   async getInventoryItemsCount() {
-    console.log(this.inventoryItems);
     return await this.inventoryItems.count();
   }
 
