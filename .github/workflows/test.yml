@@ -1,21 +1,15 @@
-name: My First Action
+name: Hello World Workflow
 
 on:
-    workflow_dispatch:
-        inputs:
-            who-to-greet:
-                description: Who to greet in the log
-                required: true
-                default: "World"
-                type: string
+    push:
+        branches: [main]
 
 jobs:
     say-hello:
-        name: Say Hello Carlos
         runs-on: ubuntu-latest
         steps:
-            - name: Print Log
-              uses: actions/hello-world-javascript-action@main
-              with:
-                who-to-greet: ${{ inputs.who-to-greet}}
-
+            - name: Say Hello
+              run: echo "Hello, world!"
+            
+            - name: Where I am
+              run: echo pwd
