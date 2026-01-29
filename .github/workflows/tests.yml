@@ -38,6 +38,9 @@ jobs:
     name: Tests on Chromium
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    if: >
+      (github.event_name == 'workflow_dispatch' &&
+        (github.event.inputs.browser == 'chromium' || github.event.inputs.browser == 'all'))
 
     steps:
       - name: Checkout repository
@@ -53,7 +56,7 @@ jobs:
         run: npm ci
 
       - name: Install Playwright Browsers
-        run: npx playwright install chromium --with-deps
+        run: npx playwright install --with-deps
 
       - name: Create auth directory
         run: mkdir -p src/tests/.auth
@@ -84,7 +87,9 @@ jobs:
     name: Tests on Firefox
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # needs: test-chromium # Run after Chromium tests pass
+    if: >
+      (github.event_name == 'workflow_dispatch' &&
+        (github.event.inputs.browser == 'firefox' || github.event.inputs.browser == 'all'))
 
     steps:
       - name: Checkout repository
@@ -123,7 +128,9 @@ jobs:
     name: Tests on WebKit
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # needs: test-chromium # Run after Chromium tests pass
+    if: >
+      (github.event_name == 'workflow_dispatch' &&
+        (github.event.inputs.browser == 'webkit' || github.event.inputs.browser == 'all'))
 
     steps:
       - name: Checkout repository
@@ -168,6 +175,11 @@ jobs:
       - name: Check test results
         run: |
           echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "**Selected Browser:** ${{ github.event.inputs.browser }}" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Browser | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
