@@ -1,0 +1,124 @@
+name: Playwright Tests (Matrix)
+
+on:
+  # Allow manual trigger with browser selection
+  workflow_dispatch:
+    inputs:
+      browser:
+        description: 'Browser to test'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - chromium
+          - firefox
+          - webkit
+          - all
+
+env:
+  # Application Configuration
+  BASE_URL: https://www.saucedemo.com
+  STANDARD_USER: standard_user
+  STANDARD_PASSWORD: secret_sauce
+  LOCKED_OUT_USER: locked_out_user
+  PROBLEM_USER: problem_user
+  PERFORMANCE_USER: performance_glitch_user
+  ERROR_USER: error_user
+  VISUAL_USER: visual_user
+
+  # Test Configuration
+  DEFAULT_TIMEOUT: 30000
+  NAVIGATION_TIMEOUT: 30000
+  RETRY_COUNT: 2
+  SCREENSHOT_ON_FAILURE: true
+  HEADLESS: true
+
+jobs:
+  # Determine which browsers to run based on input
+  setup:
+    name: Setup Test Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      browsers: ${{ steps.set-matrix.outputs.browsers }}
+    steps:
+      - name: Set browser matrix
+        id: set-matrix
+        run: |
+          if [ "${{ github.event.inputs.browser }}" == "all" ]; then
+            echo 'browsers=["chromium", "firefox", "webkit"]' >> $GITHUB_OUTPUT
+          else
+            echo 'browsers=["${{ github.event.inputs.browser }}"]' >> $GITHUB_OUTPUT
+          fi
+
+  # Single reusable job with matrix strategy
+  test:
+    name: Tests on ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    needs: setup
+    timeout-minutes: 30
+
+    strategy:
+      # Don't fail all jobs if one browser fails
+      fail-fast: false
+      matrix:
+        browser: ${{ fromJson(needs.setup.outputs.browsers) }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+
+      - name: Create auth directory
+        run: mkdir -p src/tests/.auth
+
+      - name: Run Playwright tests on ${{ matrix.browser }}
+        run: npx playwright test --project=setup --project=${{ matrix.browser }}
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 30
+
+      - name: Upload screenshots on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: screenshots-${{ matrix.browser }}
+          path: test-results/**/*.png
+          retention-days: 30
+
+  # Summary job
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [setup, test]
+    if: always()
+
+    steps:
+      - name: Check test results
+        run: |
+          echo "## 🎭 Playwright Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Selected Browser:** ${{ github.event.inputs.browser }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Browsers Tested:** ${{ needs.setup.outputs.browsers }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
